@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Heating · Björkelund</title>
+  <style>
+    :root {
+      --bg: #f6f3ec; --card: #fffdf8; --text: #22261f; --muted: #6b6f63; --line: #e2ddd0;
+      --accent: #801818; --accent-text: #fff;
+      --temp: #a32a24; --hum: #2f6f9f; --pump: rgba(163, 42, 36, 0.10); --grid: #ece7da;
+      --warn-bg: #fbeee0; --warn-text: #7a3b06; --bad-bg: #f9e3e1; --bad-text: #8a1c14;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161813; --card: #1f221b; --text: #e9e6dc; --muted: #9a9d90; --line: #34382d;
+        --accent: #b8332b; --accent-text: #fff;
+        --temp: #d4544b; --hum: #3f8fd0; --pump: rgba(212, 84, 75, 0.16); --grid: #2b2f26;
+        --warn-bg: #3a2a14; --warn-text: #f3c48a; --bad-bg: #3d1a17; --bad-text: #f2a39c;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, sans-serif; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+             padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    header a { color: inherit; }
+    header strong { font-family: Georgia, serif; font-weight: normal; font-size: 20px; }
+    header span { color: var(--muted); font-size: 14px; }
+    main { max-width: 60rem; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+    h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+    .muted { color: var(--muted); }
+    .banner { border-radius: 10px; padding: 12px 16px; }
+    .banner.warn { background: var(--warn-bg); color: var(--warn-text); }
+    .banner.bad { background: var(--bad-bg); color: var(--bad-text); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 16px; }
+    .stat .label { font-size: 13px; color: var(--muted); }
+    .stat .value { font-size: 30px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    .stat .sub { font-size: 13px; color: var(--muted); }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; border: 1px solid var(--line); }
+    .pill.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+    button { font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line);
+             background: var(--card); color: var(--text); cursor: pointer; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+    button:disabled { opacity: 0.5; cursor: default; }
+    form.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 12px 16px; align-items: end; }
+    label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+    input[type=number] { font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+                         background: var(--bg); color: var(--text); width: 100%; }
+    .toggle { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text); padding: 8px 0; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+    .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .seg button { border: 0; border-radius: 0; padding: 6px 12px; }
+    .seg button[aria-pressed=true] { background: var(--text); color: var(--card); }
+    .chart { position: relative; height: 220px; margin-top: 8px; }
+    .chart.small { height: 150px; }
+    .chart-title { font-size: 13px; color: var(--muted); margin-top: 12px; }
+    .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--pump);
+              border: 1px solid var(--temp); vertical-align: -2px; margin: 0 4px 0 8px; }
+    .error { color: var(--bad-text); font-size: 14px; min-height: 1.2em; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { font-weight: 600; color: var(--muted); font-size: 13px; }
+    td.err { white-space: normal; color: var(--bad-text); min-width: 12rem; }
+    .code { font: 600 22px/1.2 ui-monospace, monospace; letter-spacing: 0.08em; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <strong><a href="/admin" style="text-decoration:none">Björkelund</a> · Heating</strong>
+    <span><span id="who"></span> <a href="/cdn-cgi/access/logout">Log out</a></span>
+  </header>
+  <main>
+    <div id="banners"></div>
+
+    <section class="card">
+      <div class="row">
+        <h2 style="margin:0">Now</h2>
+        <button id="check">Check now</button>
+      </div>
+      <div class="stats" style="margin-top:12px">
+        <div class="stat"><div class="label">Inside temperature</div><div class="value" id="temp">–</div><div class="sub" id="band"></div></div>
+        <div class="stat"><div class="label">Humidity</div><div class="value" id="hum">–</div><div class="sub">aim: below 70 %</div></div>
+        <div class="stat"><div class="label">Heat pump</div><div class="value"><span class="pill" id="pump">–</span></div><div class="sub" id="action"></div></div>
+        <div class="stat"><div class="label">Last successful check</div><div class="value" style="font-size:20px" id="lastok">–</div><div class="sub" id="quota"></div></div>
+      </div>
+      <div class="error" id="check-error"></div>
+    </section>
+
+    <section class="card">
+      <h2>Settings</h2>
+      <form class="settings" id="settings" novalidate>
+        <label>Target temperature (°C)
+          <input type="number" id="target" step="0.5" required>
+        </label>
+        <label>Band (± °C)
+          <input type="number" id="bandw" step="0.5" required>
+        </label>
+        <div class="toggle"><input type="checkbox" id="enabled"><label for="enabled" style="color:inherit;font-size:15px">Control enabled</label></div>
+        <div><button class="primary" type="submit" id="save">Save</button></div>
+      </form>
+      <p class="muted" id="explain" style="margin:12px 0 0"></p>
+      <div class="error" id="settings-error"></div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <h2 style="margin:0">History</h2>
+        <div class="seg" role="group" aria-label="Range">
+          <button data-days="1" aria-pressed="false">24 h</button>
+          <button data-days="7" aria-pressed="true">7 days</button>
+          <button data-days="30" aria-pressed="false">30 days</button>
+        </div>
+      </div>
+      <div class="chart-title">Inside temperature (°C)<span class="swatch"></span>pump on</div>
+      <div class="chart"><canvas id="tempChart" aria-label="Inside temperature chart"></canvas></div>
+      <div class="chart-title">Humidity (%)</div>
+      <div class="chart small"><canvas id="humChart" aria-label="Humidity chart"></canvas></div>
+      <p class="muted" id="empty" hidden>No readings yet. The first one arrives at the top of the next hour, or press “Check now”.</p>
+    </section>
+
+    <section class="card">
+      <h2>Log</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Temp</th><th>Humidity</th><th>Pump</th><th>Action</th><th>Source</th><th>Error</th></tr></thead>
+          <tbody id="log"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>tado° connection</h2>
+      <p id="conn" style="margin:0 0 12px"></p>
+      <button id="connect">Connect tado°</button>
+      <div id="login" hidden style="margin-top:12px">
+        <p style="margin:0 0 8px">Open <a id="login-link" target="_blank" rel="noopener">tado° login</a> and approve. Code:</p>
+        <div class="code" id="login-code"></div>
+        <p class="muted" id="login-state" style="margin:8px 0 0">Waiting for approval…</p>
+      </div>
+      <div class="error" id="connect-error"></div>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+          integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD"
+          crossorigin="anonymous"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const TZ = "Europe/Stockholm";
+    const fmtTime = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    const fmtHour = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+    const fmtDay = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, day: "numeric", month: "short" });
+    const deg = (n) => (n == null ? "–" : `${n.toFixed(1)} °C`);
+    const pct = (n) => (n == null ? "–" : `${Math.round(n)} %`);
+    const ACTIONS = { none: "no change", turned_on: "turned on", turned_off: "turned off", paused: "paused", error: "error" };
+    const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+    let status = null;
+    let days = 7;
+    let readings = [];
+
+    async function api(method, path, body) {
+      const res = await fetch(`/api/admin/heating${path}`, {
+        method,
+        headers: body ? { "content-type": "application/json" } : {},
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+      return data;
+    }
+
+    // ---- Status ----
+    function renderStatus(s) {
+      status = s;
+      const last = s.last, ok = s.last_ok;
+      $("temp").textContent = deg(ok?.temp_c);
+      $("hum").textContent = pct(ok?.humidity_pct);
+      $("band").textContent = `on below ${s.thresholds.on.toFixed(1)} · off above ${s.thresholds.off.toFixed(1)}`;
+      const on = ok?.pump_power === "ON";
+      $("pump").textContent = ok ? (on ? "ON" : "OFF") : "–";
+      $("pump").className = `pill${on ? " on" : ""}`;
+      $("action").textContent = ok ? `last check: ${ACTIONS[ok.action] ?? ok.action}` : "";
+      $("lastok").textContent = ok ? fmtTime.format(new Date(ok.ts)) : "never";
+      $("quota").textContent = ok?.ratelimit_remaining != null ? `${ok.ratelimit_remaining} tado° calls left today` : "";
+
+      const banners = [];
+      if (s.connection.status === "needs_reconnect") banners.push(["bad", "tado° needs reconnecting. The pump is being left as it is until then. Use “Reconnect tado°” below."]);
+      else if (s.connection.status === "disconnected") banners.push(["warn", "tado° is not connected yet. Connect it below to start the control loop."]);
+      if (last?.action === "error") banners.push(["bad", `Last check failed (${fmtTime.format(new Date(last.ts))}): ${last.error}. Nothing was changed on the pump.`]);
+      else if (s.stale && s.connection.status === "connected") banners.push(["warn", "No successful check in the last 2 hours."]);
+      if (!s.settings.enabled) banners.push(["warn", "Control is paused: the pump is left as it is. Readings are still logged."]);
+      const box = $("banners");
+      box.replaceChildren(...banners.map(([kind, text]) => {
+        const d = document.createElement("div");
+        d.className = `banner ${kind}`;
+        d.textContent = text;
+        return d;
+      }));
+      box.style.display = banners.length ? "grid" : "none";
+      box.style.gap = "8px";
+
+      if (!document.activeElement || !$("settings").contains(document.activeElement)) {
+        $("target").value = s.settings.target_c;
+        $("bandw").value = s.settings.band_c;
+        $("enabled").checked = s.settings.enabled;
+      }
+      explain();
+
+      const conn = { connected: "Connected.", needs_reconnect: "Login expired or revoked.", disconnected: "Not connected." }[s.connection.status];
+      $("conn").textContent = conn ?? s.connection.status;
+      $("connect").textContent = s.connection.status === "connected" ? "Reconnect tado°" : "Connect tado°";
+    }
+
+    // ---- Settings (validated here and again on the server) ----
+    function readForm() {
+      return { target_c: $("target").valueAsNumber, band_c: $("bandw").valueAsNumber, enabled: $("enabled").checked };
+    }
+    function validate(v) {
+      const L = status.limits;
+      if (!Number.isFinite(v.target_c) || !Number.isFinite(v.band_c)) return "Enter a target and a band.";
+      if (v.band_c < L.minBand || v.band_c > L.maxBand) return `Band must be between ±${L.minBand} and ±${L.maxBand} °C.`;
+      if (v.target_c - v.band_c < L.minOn) return `The pump would only start below ${(v.target_c - v.band_c).toFixed(1)} °C; the minimum is ${L.minOn} °C.`;
+      if (v.target_c + v.band_c > L.maxOff) return `The pump would only stop above ${(v.target_c + v.band_c).toFixed(1)} °C; the maximum is ${L.maxOff} °C.`;
+      return "";
+    }
+    function explain() {
+      if (!status) return;
+      const v = readForm();
+      const err = validate(v);
+      $("settings-error").textContent = err;
+      $("save").disabled = !!err;
+      $("explain").textContent = err ? "" :
+        `The heat pump turns on (heat at its lowest setting) when it is colder than ${(v.target_c - v.band_c).toFixed(1)} °C, ` +
+        `and off when it is warmer than ${(v.target_c + v.band_c).toFixed(1)} °C. In between it is left as it is.`;
+    }
+    $("settings").addEventListener("input", explain);
+    $("settings").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const v = readForm();
+      if (validate(v)) return;
+      $("save").disabled = true;
+      try {
+        document.activeElement?.blur();
+        renderStatus(await api("PUT", "/settings", v));
+        $("settings-error").textContent = "";
+        $("explain").textContent = "Saved. " + $("explain").textContent;
+        renderCharts();
+      } catch (err) {
+        $("settings-error").textContent = err.message;
+      } finally {
+        $("save").disabled = false;
+      }
+    });
+
+    // ---- Check now ----
+    $("check").addEventListener("click", async () => {
+      $("check").disabled = true;
+      $("check-error").textContent = "";
+      try {
+        renderStatus(await api("POST", "/check"));
+        await loadReadings();
+      } catch (err) {
+        $("check-error").textContent = err.message;
+      } finally {
+        $("check").disabled = false;
+      }
+    });
+
+    // ---- Connect tado° (device-code login) ----
+    $("connect").addEventListener("click", async () => {
+      $("connect-error").textContent = "";
+      $("connect").disabled = true;
+      try {
+        const start = await api("POST", "/connect/start");
+        $("login-link").href = start.url;
+        $("login-code").textContent = start.user_code;
+        $("login-state").textContent = "Waiting for approval…";
+        $("login").hidden = false;
+        window.open(start.url, "_blank", "noopener");
+        const until = Date.now() + start.expires_in * 1000;
+        while (Date.now() < until) {
+          await new Promise((r) => setTimeout(r, Math.max(start.interval, 5) * 1000));
+          const r = await api("POST", "/connect/poll");
+          if (r.result === "approved") {
+            $("login-state").textContent = "Connected.";
+            renderStatus(r.status);
+            setTimeout(() => ($("login").hidden = true), 3000);
+            return;
+          }
+          if (r.result === "expired") break;
+        }
+        $("login-state").textContent = "The code expired. Try again.";
+      } catch (err) {
+        $("connect-error").textContent = err.message;
+      } finally {
+        $("connect").disabled = false;
+      }
+    });
+
+    // ---- History ----
+    document.querySelectorAll(".seg button").forEach((b) =>
+      b.addEventListener("click", async () => {
+        days = Number(b.dataset.days);
+        document.querySelectorAll(".seg button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        await loadReadings();
+      })
+    );
+
+    async function loadReadings() {
+      readings = (await api("GET", `/readings?days=${days}`)).readings;
+      renderCharts();
+      renderLog();
+    }
+
+    function renderLog() {
+      const rows = readings.slice(-48).reverse().map((r) => {
+        const tr = document.createElement("tr");
+        const cells = [fmtTime.format(new Date(r.ts)), deg(r.temp_c), pct(r.humidity_pct), r.pump_power ?? "–", ACTIONS[r.action] ?? r.action, r.source, r.error ?? ""];
+        cells.forEach((text, i) => {
+          const td = document.createElement("td");
+          td.textContent = text;
+          if (i === 6 && text) td.className = "err";
+          tr.append(td);
+        });
+        return tr;
+      });
+      $("log").replaceChildren(...rows);
+    }
+
+    // Shaded spans while the pump was on, dashed threshold lines, and a hover crosshair.
+    const overlays = {
+      id: "overlays",
+      beforeDatasetsDraw(chart, _args, opts) {
+        const { ctx, chartArea: a, scales: { x, y } } = chart;
+        ctx.save();
+        if (opts.pumpSpans) {
+          ctx.fillStyle = css("--pump");
+          for (const [from, to] of opts.pumpSpans) {
+            const x0 = Math.max(a.left, x.getPixelForValue(from)), x1 = Math.min(a.right, x.getPixelForValue(to));
+            if (x1 > x0) ctx.fillRect(x0, a.top, x1 - x0, a.bottom - a.top);
+          }
+        }
+        ctx.font = "12px system-ui, sans-serif";
+        for (const line of opts.lines ?? []) {
+          const py = y.getPixelForValue(line.value);
+          if (py < a.top || py > a.bottom) continue;
+          ctx.strokeStyle = css("--muted");
+          ctx.setLineDash([4, 4]);
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(a.left, py); ctx.lineTo(a.right, py); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = css("--muted");
+          ctx.textAlign = "right";
+          ctx.fillText(line.label, a.right - 4, py - 4);
+        }
+        ctx.restore();
+      },
+      afterDatasetsDraw(chart) {
+        const active = chart.tooltip?.getActiveElements?.() ?? [];
+        if (!active.length) return;
+        const { ctx, chartArea: a } = chart;
+        ctx.save();
+        ctx.strokeStyle = css("--muted");
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(active[0].element.x, a.top); ctx.lineTo(active[0].element.x, a.bottom); ctx.stroke();
+        ctx.restore();
+      },
+    };
+
+    const charts = {};
+    function lineChart(canvas, color, unit, plugins) {
+      const muted = css("--muted"), grid = css("--grid");
+      return new Chart(canvas, {
+        type: "line",
+        data: { datasets: [{ data: [], borderColor: color, backgroundColor: color, borderWidth: 2, pointRadius: 0,
+                             pointHoverRadius: 5, pointHoverBorderColor: css("--card"), pointHoverBorderWidth: 2, tension: 0.25, spanGaps: false }] },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
+          interaction: { mode: "index", intersect: false, axis: "x" },
+          scales: {
+            x: { type: "linear", grid: { display: false }, border: { color: grid },
+                 ticks: { color: muted, maxTicksLimit: 7, maxRotation: 0,
+                          callback: (v) => (days === 1 ? fmtHour : fmtDay).format(new Date(v)) } },
+            y: { grid: { color: grid }, border: { display: false }, ticks: { color: muted, maxTicksLimit: 5 } },
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              displayColors: false,
+              callbacks: {
+                title: (items) => fmtTime.format(new Date(items[0].parsed.x)),
+                label: (item) => `${item.parsed.y.toFixed(1)} ${unit}`,
+                afterLabel: (item) => {
+                  const r = readings[item.dataIndex];
+                  return r && unit === "°C" ? `pump ${r.pump_power ?? "–"}` : "";
+                },
+              },
+            },
+            overlays: plugins,
+          },
+        },
+        plugins: [overlays],
+      });
+    }
+
+    function renderCharts() {
+      if (!window.Chart || !status) return;
+      $("empty").hidden = readings.length > 0;
+      const temps = readings.map((r) => ({ x: Date.parse(r.ts), y: r.temp_c }));
+      const hums = readings.map((r) => ({ x: Date.parse(r.ts), y: r.humidity_pct }));
+      const spans = [];
+      readings.forEach((r, i) => {
+        if (r.pump_power !== "ON") return;
+        const to = readings[i + 1] ? Date.parse(readings[i + 1].ts) : Date.now();
+        spans.push([Date.parse(r.ts), to]);
+      });
+      const min = Date.now() - days * 86_400_000, max = Date.now();
+      const t = status.thresholds;
+
+      charts.temp ??= lineChart($("tempChart"), css("--temp"), "°C", {});
+      charts.hum ??= lineChart($("humChart"), css("--hum"), "%", {});
+      for (const [chart, data] of [[charts.temp, temps], [charts.hum, hums]]) {
+        chart.data.datasets[0].data = data;
+        chart.options.scales.x.min = min;
+        chart.options.scales.x.max = max;
+      }
+      charts.temp.options.plugins.overlays = {
+        pumpSpans: spans,
+        lines: [{ value: t.on, label: `on ${t.on.toFixed(1)}°` }, { value: t.off, label: `off ${t.off.toFixed(1)}°` }],
+      };
+      const tv = temps.map((p) => p.y).filter((v) => v != null);
+      charts.temp.options.scales.y.suggestedMin = Math.min(t.on - 1, ...tv);
+      charts.temp.options.scales.y.suggestedMax = Math.max(t.off + 1, ...tv);
+      charts.hum.options.plugins.overlays = { lines: [{ value: 70, label: "70 %" }] };
+      charts.hum.options.scales.y.suggestedMin = 40;
+      charts.hum.options.scales.y.suggestedMax = 80;
+      charts.temp.update();
+      charts.hum.update();
+    }
+
+    // ---- Boot ----
+    (async () => {
+      try {
+        const [me, s] = await Promise.all([fetch("/api/admin/me").then((r) => r.json()), api("GET", "/status")]);
+        $("who").textContent = `${me.email} ·`;
+        renderStatus(s);
+        await loadReadings();
+      } catch (err) {
+        $("check-error").textContent = err.message;
+      }
+      setInterval(async () => {
+        if (document.hidden) return;
+        try { renderStatus(await api("GET", "/status")); } catch {}
+      }, 60_000);
+    })();
+  </script>
+</body>
+</html>

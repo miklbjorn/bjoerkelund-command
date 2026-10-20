@@ -81,6 +81,12 @@ Run the acceptance criteria in spec section 9, set the electric heaters to about
 | Cloudflare Zero Trust → Access → Applications | App for `bjoerkelund.mikkelbjoern.com/admin*` and `/api/admin*`, policy **Allow → Emails →** the two addresses. **This is the allow-list.** |
 | Worker secret `ADMIN_EMAILS` | The same two emails, checked again in `src/auth/access.ts`. Set with `wrangler secret put ADMIN_EMAILS`; for local dev, put it in `.dev.vars`. |
 
+## Settings model (changed 2026-10-20)
+
+Instead of separate on and off thresholds, the panel stores a **target** and a **band (±)**. The pump turns on below `target − band` and off above `target + band`. Defaults are 9 ± 1 °C, the same as 8/10. Limits: the on threshold is at least 5 °C, the off threshold at most 16 °C, and the band is between ±0.5 and ±3 °C. These are enforced in `src/panels/heating/control.ts` (server) and in the page (client).
+
+When there is no MANUAL overlay (the tado° schedule has taken over), the loop takes control back: it turns the pump on or off depending on which side of the target the temperature is.
+
 ## Still open
 
 - [ ] Heat pump brand/model. Phase 0.3 will show the setpoint range anyway.
@@ -100,4 +106,4 @@ Run 2026-10-20 (ids are in `.tado/ids.json`, which is gitignored):
 | 0.6 | ✅ `ratelimit: "perday";r=999` after the first call → **daily limit is 1,000** (not the documented 100/20,000). The refresh call to login.tado.com did not count. |
 | 0.7 | ✅ `PUT overlay` with only `power/mode/temperature` is accepted. tado° fills in defaults: `fanLevel: LEVEL2`, swings OFF, **`light: ON`**. Confirmed in the tado° app. The Worker should send `fanLevel` and `light: "OFF"` explicitly. |
 | 0.8 | ✅ OFF overlay works and is held as `MANUAL` with `projectedExpiry: null` (no auto-expiry). `DELETE overlay` returns to the schedule. **The cron should always leave a MANUAL overlay (ON or OFF) and never resume the schedule**, so the tado° schedule can't take over. |
-| 0.9 | ⏳ In progress: pump left ON (MANUAL, HEAT 17 °C) on 2026-10-20 ~14:00. Run `probe` after a few hours and check `overlayType` is still `MANUAL` and `power` is still `ON` despite home `tadoMode: AWAY`. |
+| 0.9 | ✅ MANUAL HEAT overlay held for ~2 h (11:54–13:51 UTC) with home in AWAY mode; ended by a manual OFF at 13:51 UTC (not from the app). |

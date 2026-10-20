@@ -23,5 +23,12 @@
     "ACCESS_AUD": "73cd2b1756c07b4c3d6c4e548d9581f9f58ff3c6f9155c12a38448a5e41b9555" // Access app "Bjoerkelund admin"
   },
 
+  "d1_databases": [
+    { "binding": "DB", "database_name": "bjoerkelund-db", "database_id": "f33014bd-ff3c-4337-b5fa-00a3f45ebe4f", "migrations_dir": "migrations" }
+  ],
+
+  // Hourly control loop for the heating panel (and any future panel crons).
+  "triggers": { "crons": ["0 * * * *"] },
+
   "observability": { "enabled": true }
 }

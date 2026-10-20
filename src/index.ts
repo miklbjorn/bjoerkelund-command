@@ -1,9 +1,11 @@
 import { verifyAccess } from "./auth/access";
+import { html, json } from "./http";
 import { panels } from "./panels/registry";
 import adminHtml from "./admin/index.html";
 
 export interface Env {
   ASSETS: Fetcher;
+  DB: D1Database;
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_AUD: string;
   ADMIN_EMAILS?: string; // Worker secret, comma-separated
@@ -11,24 +13,6 @@ export interface Env {
 
 // Admin pages are bundled into the Worker, never into the public assets, so the
 // only way to reach them is through the auth check below.
-const ADMIN_HEADERS = {
-  "cache-control": "no-store",
-  "x-frame-options": "DENY",
-  "x-content-type-options": "nosniff",
-  "referrer-policy": "same-origin",
-  "content-security-policy":
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; " +
-    "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
-};
-
-const json = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { ...ADMIN_HEADERS, "content-type": "application/json" },
-  });
-
-const html = (body: string) =>
-  new Response(body, { headers: { ...ADMIN_HEADERS, "content-type": "text/html; charset=utf-8" } });
 
 // Cloudflare Access does not match every encoding of a path (e.g. /admin%2F...),
 // so decide "is this admin?" on a normalised path and fail closed.
@@ -64,6 +48,12 @@ export default {
       }
       if (request.method === "GET" && url.pathname === "/api/admin/me") {
         return json({ email: admin.email, panels: panels.map(({ id, title, description }) => ({ id, title, description })) });
+      }
+      for (const panel of panels) {
+        if (url.pathname.startsWith(`/admin/${panel.id}`) || url.pathname.startsWith(`/api/admin/${panel.id}/`)) {
+          const res = await panel.routes(request, env, url, admin);
+          if (res) return res;
+        }
       }
       return json({ error: "not_found" }, 404);
     }
