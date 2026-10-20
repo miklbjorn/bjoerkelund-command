@@ -7,25 +7,23 @@
   <meta name="description" content="Björkelund – en 200 år gammel torp, dybt inde i Smålands skove.">
   <style>
     :root {
-      --bg: #f6f3ec;
-      --text: #22261f;
-      --muted: #6b6f63;
+      --text: #f1eee4;
+      --muted: #c9c5b8;
+      --shade: rgba(14, 16, 12, 0.22);  /* over the whole photo */
+      --panel: rgba(14, 16, 12, 0.66);  /* behind the text */
       --fade: 2.5s;
     }
-    @media (prefers-color-scheme: dark) {
-      :root { --bg: #161813; --text: #e9e6dc; --muted: #9a9d90; }
-    }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
       margin: 0;
-      background: var(--bg);
+      background: #1b1e18;
       color: var(--text);
       font: 18px/1.6 Georgia, "Iowan Old Style", serif;
     }
     .hero {
-      position: relative;
-      height: min(78vh, 760px);
-      min-height: 320px;
+      position: fixed;
+      inset: 0;
       overflow: hidden;
       background: #2b2f27;
     }
@@ -43,23 +41,37 @@
       opacity: 1;
       transform: scale(1);
     }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: var(--shade);
+    }
     @media (prefers-reduced-motion: reduce) {
       .hero img { transition: none; transform: none; }
     }
     main {
-      max-width: 36rem;
-      margin: 0 auto;
-      padding: 48px 16px 72px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      width: min(26rem, 100%);
+      min-height: 100%;
+      padding: 48px 40px;
+      background: var(--panel);
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
     }
     h1 {
       margin: 0 0 12px;
-      font-size: clamp(2rem, 6vw, 3rem);
+      font-size: clamp(2.2rem, 5vw, 3rem);
       font-weight: normal;
       letter-spacing: 0.01em;
+      line-height: 1.15;
     }
-    p { margin: 0; }
+    p { margin: 0; color: var(--muted); }
     .login {
-      display: inline-block;
+      align-self: flex-start;
       margin-top: 32px;
       padding: 10px 22px;
       border: 1px solid currentColor;
@@ -72,7 +84,16 @@
     }
     .login:hover, .login:focus-visible {
       background: var(--text);
-      color: var(--bg);
+      color: #14160f;
+    }
+    /* Phones: the sidebar becomes a panel along the bottom, photo above it. */
+    @media (max-width: 640px) {
+      body { display: flex; flex-direction: column; justify-content: flex-end; min-height: 100dvh; }
+      main {
+        width: 100%;
+        min-height: 0;
+        padding: 28px 16px calc(28px + env(safe-area-inset-bottom));
+      }
     }
   </style>
 </head>
