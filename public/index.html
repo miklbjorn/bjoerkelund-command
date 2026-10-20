@@ -2,15 +2,17 @@
 <html lang="da">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Björkelund</title>
   <meta name="description" content="Björkelund – en 200 år gammel torp, dybt inde i Smålands skove.">
   <style>
     :root {
       --text: #f1eee4;
-      --muted: #c9c5b8;
-      --shade: rgba(14, 16, 12, 0.22);  /* over the whole photo */
-      --panel: rgba(14, 16, 12, 0.66);  /* behind the text */
+      --muted: #ead9cf;
+      --falu: 128, 24, 24;                     /* falu red, #801818 */
+      --shade: rgba(60, 10, 10, 0.16);         /* over the whole photo */
+      --panel: rgba(var(--falu), 0.78);        /* behind the text */
+      --sidebar: 16.5rem;
       --fade: 2.5s;
     }
     * { box-sizing: border-box; }
@@ -19,7 +21,7 @@
       margin: 0;
       background: #1b1e18;
       color: var(--text);
-      font: 18px/1.6 Georgia, "Iowan Old Style", serif;
+      font: 17px/1.55 Georgia, "Iowan Old Style", serif;
     }
     .hero {
       position: fixed;
@@ -27,19 +29,23 @@
       overflow: hidden;
       background: #2b2f27;
     }
-    .hero img {
+    .slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transform: scale(1.04);
+      transition: opacity var(--fade) ease-in-out, transform 12s linear;
+    }
+    .slide.on {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .slide img {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
-      opacity: 0;
-      transform: scale(1.04);
-      transition: opacity var(--fade) ease-in-out, transform 12s linear;
-    }
-    .hero img.on {
-      opacity: 1;
-      transform: scale(1);
     }
     .hero::after {
       content: "";
@@ -48,23 +54,23 @@
       background: var(--shade);
     }
     @media (prefers-reduced-motion: reduce) {
-      .hero img { transition: none; transform: none; }
+      .slide { transition: none; transform: none; }
     }
     main {
       position: relative;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      width: min(26rem, 100%);
+      width: var(--sidebar);
       min-height: 100%;
-      padding: 48px 40px;
+      padding: 40px 28px;
       background: var(--panel);
       -webkit-backdrop-filter: blur(6px);
       backdrop-filter: blur(6px);
     }
     h1 {
-      margin: 0 0 12px;
-      font-size: clamp(2.2rem, 5vw, 3rem);
+      margin: 0 0 10px;
+      font-size: 2.1rem;
       font-weight: normal;
       letter-spacing: 0.01em;
       line-height: 1.15;
@@ -72,8 +78,8 @@
     p { margin: 0; color: var(--muted); }
     .login {
       align-self: flex-start;
-      margin-top: 32px;
-      padding: 10px 22px;
+      margin-top: 28px;
+      padding: 9px 20px;
       border: 1px solid currentColor;
       border-radius: 999px;
       color: var(--text);
@@ -84,36 +90,64 @@
     }
     .login:hover, .login:focus-visible {
       background: var(--text);
-      color: #14160f;
+      color: rgb(var(--falu));
     }
-    /* Phones: the sidebar becomes a panel along the bottom, photo above it. */
+
+    /* Phones: the whole photo above the text, on a heavily blurred copy of itself
+       that fills the screen and runs behind the text. */
     @media (max-width: 640px) {
       body { display: flex; flex-direction: column; justify-content: flex-end; min-height: 100dvh; }
+      .hero::after { display: none; }
+      .slide::before {
+        content: "";
+        position: absolute;
+        inset: -60px;  /* hide the soft edges the blur creates */
+        background: var(--bg) center / cover no-repeat;
+        filter: blur(36px) brightness(0.62) saturate(1.1);
+      }
+      .slide img {
+        inset: 0 0 auto 0;
+        height: calc(100dvh - var(--text-h, 38dvh));
+        padding-top: env(safe-area-inset-top);
+        object-fit: contain;
+      }
       main {
         width: 100%;
         min-height: 0;
-        padding: 28px 16px calc(28px + env(safe-area-inset-bottom));
+        padding: 24px 20px calc(28px + env(safe-area-inset-bottom));
+        background: linear-gradient(to bottom, rgba(var(--falu), 0), rgba(var(--falu), 0.55) 45%, rgba(var(--falu), 0.7));
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
       }
+      h1 { font-size: 2rem; }
     }
   </style>
 </head>
 <body>
   <div class="hero" id="hero">
     <!-- Frost is the no-JS default; the script picks a start image for the season and time of day. -->
-    <img class="on" alt="Det røde hus en frostklar morgen, set forbi en gammel eg"
-         src="/images/frost-900.jpg" srcset="/images/frost-900.jpg 675w, /images/frost-1600.jpg 1086w" sizes="100vw"
-         style="object-position: 50% 55%" data-name="frost">
-    <img alt="Huset i forsommeren bag en eng med lupiner"
-         data-srcset="/images/summer-900.jpg 900w, /images/summer-1600.jpg 1600w" sizes="100vw"
-         style="object-position: 45% 60%" data-name="summer">
-    <img alt="Huset i skumringen med varmt lys i vinduerne"
-         data-srcset="/images/evening-900.jpg 900w, /images/evening-1600.jpg 1600w" sizes="100vw"
-         style="object-position: 50% 45%" data-name="evening">
-    <img alt="En kurv med kantareller og en karljohan fra efterårsskoven"
-         data-srcset="/images/chanterelles-900.jpg 675w, /images/chanterelles-1600.jpg 1200w" sizes="100vw"
-         style="object-position: 50% 60%" data-name="chanterelles">
+    <div class="slide on" data-name="frost" style="--bg: url(/images/frost-900.jpg)">
+      <img alt="Det røde hus en frostklar morgen, set forbi en gammel eg"
+           src="/images/frost-900.jpg" srcset="/images/frost-900.jpg 675w, /images/frost-1600.jpg 1086w" sizes="100vw"
+           style="object-position: 50% 55%">
+    </div>
+    <div class="slide" data-name="summer">
+      <img alt="Huset i forsommeren bag en eng med lupiner"
+           data-srcset="/images/summer-900.jpg 900w, /images/summer-1600.jpg 1600w" sizes="100vw"
+           style="object-position: 45% 60%">
+    </div>
+    <div class="slide" data-name="evening">
+      <img alt="Huset i skumringen med varmt lys i vinduerne"
+           data-srcset="/images/evening-900.jpg 900w, /images/evening-1600.jpg 1600w" sizes="100vw"
+           style="object-position: 50% 45%">
+    </div>
+    <div class="slide" data-name="chanterelles">
+      <img alt="En kurv med kantareller og en karljohan fra efterårsskoven"
+           data-srcset="/images/chanterelles-900.jpg 675w, /images/chanterelles-1600.jpg 1200w" sizes="100vw"
+           style="object-position: 50% 60%">
+    </div>
   </div>
-  <main>
+  <main id="text">
     <h1>Björkelund</h1>
     <p>En 200 år gammel torp, dybt inde i Smålands skove.</p>
     <a class="login" href="/admin" rel="nofollow">Log ind</a>
@@ -121,7 +155,13 @@
   <script>
     (() => {
       const SHOW_MS = 9000; // time each photo stays fully visible, before the fade
-      const imgs = [...document.querySelectorAll("#hero img")];
+      const slides = [...document.querySelectorAll("#hero .slide")];
+
+      // On phones the photo sits above the text, so it needs to know how tall the text is.
+      const text = document.getElementById("text");
+      const setTextHeight = () => document.documentElement.style.setProperty("--text-h", `${text.offsetHeight}px`);
+      new ResizeObserver(setTextHeight).observe(text);
+      setTextHeight();
 
       // Start with the photo that fits the moment, in Swedish time.
       const parts = Object.fromEntries(
@@ -134,19 +174,22 @@
         month >= 12 || month <= 3 ? "frost" :
         month <= 8 ? "summer" : "chanterelles";
 
-      const load = (img) => {
+      // The blurred phone background reuses whichever file the browser picked, so it costs no extra download.
+      const load = async (slide) => {
+        const img = slide.querySelector("img");
         if (img.dataset.srcset) {
           img.srcset = img.dataset.srcset;
           delete img.dataset.srcset;
         }
-        return img.decode().catch(() => {});
+        await img.decode().catch(() => {});
+        if (img.currentSrc) slide.style.setProperty("--bg", `url("${img.currentSrc}")`);
       };
 
-      let i = imgs.findIndex((img) => img.dataset.name === start);
-      if (imgs[i].dataset.srcset) {
-        load(imgs[i]).then(() => {
-          imgs[0].classList.remove("on");
-          imgs[i].classList.add("on");
+      let i = slides.findIndex((s) => s.dataset.name === start);
+      if (i > 0) {
+        load(slides[i]).then(() => {
+          slides[0].classList.remove("on");
+          slides[i].classList.add("on");
         });
       } else {
         i = 0;
@@ -154,15 +197,15 @@
 
       if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-      const next = () => imgs[(i + 1) % imgs.length];
+      const next = () => slides[(i + 1) % slides.length];
       load(next());
 
       setInterval(async () => {
         if (document.hidden) return;
         await load(next());
-        imgs[i].classList.remove("on");
-        i = (i + 1) % imgs.length;
-        imgs[i].classList.add("on");
+        slides[i].classList.remove("on");
+        i = (i + 1) % slides.length;
+        slides[i].classList.add("on");
         load(next()); // fetch one ahead so the next fade never waits
       }, SHOW_MS);
     })();
