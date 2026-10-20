@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bjoerkelund</title>
+  <meta name="description" content="Bjoerkelund, a small torp in the forests of Småland.">
+  <style>
+    :root {
+      --bg: #f6f3ec;
+      --text: #22261f;
+      --muted: #6b6f63;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #161813; --text: #e9e6dc; --muted: #9a9d90; }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 18px/1.6 Georgia, "Iowan Old Style", serif;
+    }
+    figure { margin: 0; }
+    img {
+      display: block;
+      width: 100%;
+      height: min(70vh, 640px);
+      object-fit: cover;
+    }
+    figcaption {
+      padding: 6px 16px 0;
+      font: 12px/1.4 system-ui, sans-serif;
+      color: var(--muted);
+      text-align: right;
+    }
+    main {
+      max-width: 36rem;
+      margin: 0 auto;
+      padding: 48px 16px 72px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 6vw, 3rem);
+      font-weight: normal;
+      letter-spacing: 0.01em;
+    }
+    p { margin: 0; }
+  </style>
+</head>
+<body>
+  <figure>
+    <!-- Placeholder: hotlinked from Visit Sweden (imagebank.sweden.se). Replace with our own photo. -->
+    <img src="https://s3-eu-north-1.amazonaws.com/py3.visitsweden.com/images/goE295A0C3AAsta_reiland-sunrays_i.2e16d0ba.fill-1200x628.jpg"
+         alt="Sunlight through a Swedish pine forest">
+    <figcaption>Photo: Åsta Reiland / imagebank.sweden.se</figcaption>
+  </figure>
+  <main>
+    <h1>Bjoerkelund</h1>
+    <p>Keeping a torp is a slow, seasonal craft: mending what the winter wears down, holding back the forest, and keeping the old house warm and dry until the next summer.</p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bjoerkelund-command-center",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+
+  // Only reachable through the custom domain, where Cloudflare Access sits in front.
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "bjoerkelund.mikkelbjoern.com", "custom_domain": true }],
+
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    // Admin pages are bundled in the Worker (src/admin), not served from here.
+    "run_worker_first": ["/admin*", "/api/*"]
+  },
+
+  // ADMIN_EMAILS (comma-separated) is a Worker secret: `wrangler secret put ADMIN_EMAILS`.
+  // Locally it goes in .dev.vars (gitignored).
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "https://mikkelbjoern.cloudflareaccess.com",
+    "ACCESS_AUD": "73cd2b1756c07b4c3d6c4e548d9581f9f58ff3c6f9155c12a38448a5e41b9555" // Access app "Bjoerkelund admin"
+  },
+
+  "observability": { "enabled": true }
+}

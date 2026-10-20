@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Bjoerkelund admin</title>
+  <style>
+    :root { --bg: #f6f3ec; --card: #fffdf8; --text: #22261f; --muted: #6b6f63; --line: #e2ddd0; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #161813; --card: #1f221b; --text: #e9e6dc; --muted: #9a9d90; --line: #34382d; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+             padding: 14px 16px; border-bottom: 1px solid var(--line); }
+    header strong { font-family: Georgia, serif; font-weight: normal; font-size: 20px; }
+    header span { color: var(--muted); font-size: 14px; }
+    a { color: inherit; }
+    main { max-width: 48rem; margin: 0 auto; padding: 24px 16px; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 12px; }
+    .tile { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Bjoerkelund</strong>
+    <span><span id="who">…</span> · <a href="/cdn-cgi/access/logout">Log out</a></span>
+  </header>
+  <main>
+    <div class="tiles" id="tiles"></div>
+    <p class="muted" id="empty" hidden>No panels yet. Heating is coming next.</p>
+  </main>
+  <script>
+    fetch("/api/admin/me")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then(({ email, panels }) => {
+        document.getElementById("who").textContent = email;
+        const tiles = document.getElementById("tiles");
+        for (const p of panels) {
+          const a = document.createElement("a");
+          a.className = "tile";
+          a.href = `/admin/${p.id}`;
+          a.innerHTML = `<strong></strong><div class="muted"></div>`;
+          a.querySelector("strong").textContent = p.title;
+          a.querySelector("div").textContent = p.description;
+          tiles.append(a);
+        }
+        document.getElementById("empty").hidden = panels.length > 0;
+      })
+      .catch(() => (document.getElementById("who").textContent = "not signed in"));
+  </script>
+</body>
+</html>

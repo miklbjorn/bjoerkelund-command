@@ -1,0 +1,10 @@
+.DS_Store
+node_modules/
+.wrangler/
+.dev.vars
+
+# tado° validation spike: live tokens and raw API dumps
+.tado/
+
+# local secrets
+.env
