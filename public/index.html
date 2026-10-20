@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="da">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bjoerkelund</title>
-  <meta name="description" content="Bjoerkelund, a small torp in the forests of Småland.">
+  <title>Björkelund</title>
+  <meta name="description" content="Björkelund – en 200 år gammel torp, dybt inde i Smålands skove.">
   <style>
     :root {
       --bg: #f6f3ec;
@@ -58,27 +58,44 @@
       letter-spacing: 0.01em;
     }
     p { margin: 0; }
+    .login {
+      display: inline-block;
+      margin-top: 32px;
+      padding: 10px 22px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      color: var(--text);
+      font: 15px/1.2 system-ui, sans-serif;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+    }
+    .login:hover, .login:focus-visible {
+      background: var(--text);
+      color: var(--bg);
+    }
   </style>
 </head>
 <body>
   <div class="hero" id="hero">
     <!-- Frost is the no-JS default; the script picks a start image for the season and time of day. -->
-    <img class="on" alt="The red cottage on a frosty morning, seen past an old oak"
+    <img class="on" alt="Det røde hus en frostklar morgen, set forbi en gammel eg"
          src="/images/frost-900.jpg" srcset="/images/frost-900.jpg 675w, /images/frost-1600.jpg 1086w" sizes="100vw"
          style="object-position: 50% 55%" data-name="frost">
-    <img alt="The cottage in early summer behind a meadow of lupins"
+    <img alt="Huset i forsommeren bag en eng med lupiner"
          data-srcset="/images/summer-900.jpg 900w, /images/summer-1600.jpg 1600w" sizes="100vw"
          style="object-position: 45% 60%" data-name="summer">
-    <img alt="The cottage at dusk with warm light in the windows"
+    <img alt="Huset i skumringen med varmt lys i vinduerne"
          data-srcset="/images/evening-900.jpg 900w, /images/evening-1600.jpg 1600w" sizes="100vw"
          style="object-position: 50% 45%" data-name="evening">
-    <img alt="A basket of chanterelles and a cep picked in the autumn forest"
+    <img alt="En kurv med kantareller og en karljohan fra efterårsskoven"
          data-srcset="/images/chanterelles-900.jpg 675w, /images/chanterelles-1600.jpg 1200w" sizes="100vw"
          style="object-position: 50% 60%" data-name="chanterelles">
   </div>
   <main>
-    <h1>Bjoerkelund</h1>
-    <p>Keeping a torp is a slow, seasonal craft: mending what the winter wears down, holding back the forest, and keeping the old house warm and dry until the next summer.</p>
+    <h1>Björkelund</h1>
+    <p>En 200 år gammel torp, dybt inde i Smålands skove.</p>
+    <a class="login" href="/admin" rel="nofollow">Log ind</a>
   </main>
   <script>
     (() => {
