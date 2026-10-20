@@ -8,3 +8,6 @@ node_modules/
 
 # local secrets
 .env
+
+# original photos (may contain GPS metadata); web copies go in public/images
+photos-src/
