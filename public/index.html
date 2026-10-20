@@ -105,11 +105,22 @@
         background: var(--bg) center / cover no-repeat;
         filter: blur(36px) brightness(0.62) saturate(1.1);
       }
+      /* Centre the photo in the space above the text. It always fills the full width,
+         and only crops top/bottom if it is too tall for that space. */
+      .slide {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: env(safe-area-inset-top) 0 var(--text-h, 38dvh);
+      }
       .slide img {
-        inset: 0 0 auto 0;
-        height: calc(100dvh - var(--text-h, 38dvh));
-        padding-top: env(safe-area-inset-top);
-        object-fit: contain;
+        position: relative;
+        inset: auto;
+        width: 100%;
+        height: auto;
+        max-height: 100%;
+        flex: none;
+        object-fit: cover;
       }
       main {
         width: 100%;
