@@ -1,8 +1,9 @@
 import type { Env } from "../../index";
 import type { AdminIdentity } from "../../auth/access";
+import type { PanelSummary } from "../registry";
 import { html, json, readJson } from "../../http";
 import { LIMITS, thresholds, validateSettings } from "./control";
-import { loadSettings, runCheck } from "./cron";
+import { loadSettings, runCheck, type Reading } from "./cron";
 import { loadAuth, pollDeviceLogin, startDeviceLogin, TadoError } from "./tado";
 import page from "./page.html";
 
@@ -71,15 +72,37 @@ export async function heatingRoutes(request: Request, env: Env, url: URL, admin:
   return json({ error: "not_found" }, 404);
 }
 
+const fmt = (n: number | null | undefined, unit: string, digits = 1) => (n == null ? "–" : `${n.toFixed(digits)} ${unit}`);
+
+// Dashboard tile: green only when connected, enabled, and the last check succeeded recently.
+export async function heatingSummary(env: Env): Promise<PanelSummary> {
+  const s = await status(env);
+  const ok = s.last_ok;
+  let problem: string | null = null;
+  if (s.connection.status === "needs_reconnect") problem = "tado° needs reconnecting";
+  else if (s.connection.status !== "connected") problem = "tado° not connected";
+  else if (s.last?.action === "error") problem = "Last check failed";
+  else if (s.stale) problem = "No successful check in 2 h";
+  else if (!s.settings.enabled) problem = "Control paused";
+  return {
+    ok: problem === null,
+    label: problem ?? "Running as planned",
+    stats: [
+      { label: "Temperature", value: fmt(ok?.temp_c, "°C") },
+      { label: "Humidity", value: fmt(ok?.humidity_pct, "%", 0) },
+      { label: "Target", value: `${s.settings.target_c.toFixed(1)} ± ${s.settings.band_c.toFixed(1)} °C` },
+      { label: "Heat pump", value: ok?.pump_power ?? "–" },
+    ],
+  };
+}
+
 async function status(env: Env) {
   const [settings, auth, settingsMeta, last, lastOk] = await Promise.all([
     loadSettings(env.DB),
     loadAuth(env.DB),
     env.DB.prepare("SELECT updated_at, updated_by FROM heating_settings WHERE id = 1").first(),
-    env.DB.prepare(`SELECT ${READING_COLUMNS} FROM heating_readings ORDER BY ts DESC LIMIT 1`).first<{ ts: string }>(),
-    env.DB.prepare(`SELECT ${READING_COLUMNS} FROM heating_readings WHERE action != 'error' ORDER BY ts DESC LIMIT 1`).first<{
-      ts: string;
-    }>(),
+    env.DB.prepare(`SELECT ${READING_COLUMNS} FROM heating_readings ORDER BY ts DESC LIMIT 1`).first<Reading>(),
+    env.DB.prepare(`SELECT ${READING_COLUMNS} FROM heating_readings WHERE action != 'error' ORDER BY ts DESC LIMIT 1`).first<Reading>(),
   ]);
   return {
     settings,

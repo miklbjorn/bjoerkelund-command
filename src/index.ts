@@ -47,7 +47,15 @@ export default {
         return html(adminHtml);
       }
       if (request.method === "GET" && url.pathname === "/api/admin/me") {
-        return json({ email: admin.email, panels: panels.map(({ id, title, description }) => ({ id, title, description })) });
+        // A failing summary must not break the dashboard: that panel just shows "status unavailable".
+        const summaries = await Promise.allSettled(panels.map((p) => p.summary?.(env) ?? Promise.resolve(null)));
+        return json({
+          email: admin.email,
+          panels: panels.map(({ id, title, description }, i) => {
+            const s = summaries[i];
+            return { id, title, description, summary: s.status === "fulfilled" ? s.value : { ok: false, label: "Status unavailable", stats: [] } };
+          }),
+        });
       }
       for (const panel of panels) {
         if (url.pathname.startsWith(`/admin/${panel.id}`) || url.pathname.startsWith(`/api/admin/${panel.id}/`)) {

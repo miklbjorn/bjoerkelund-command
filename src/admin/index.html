@@ -4,11 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>Bjoerkelund admin</title>
+  <title>Björkelund admin</title>
   <style>
-    :root { --bg: #f6f3ec; --card: #fffdf8; --text: #22261f; --muted: #6b6f63; --line: #e2ddd0; }
+    :root {
+      --bg: #f6f3ec; --card: #fffdf8; --text: #22261f; --muted: #6b6f63; --line: #e2ddd0;
+      --good-bg: #e3f1e6; --good-text: #1f6b3a; --bad-bg: #f9e3e1; --bad-text: #8a1c14;
+    }
     @media (prefers-color-scheme: dark) {
-      :root { --bg: #161813; --card: #1f221b; --text: #e9e6dc; --muted: #9a9d90; --line: #34382d; }
+      :root {
+        --bg: #161813; --card: #1f221b; --text: #e9e6dc; --muted: #9a9d90; --line: #34382d;
+        --good-bg: #17331f; --good-text: #8fd6a5; --bad-bg: #3d1a17; --bad-text: #f2a39c;
+      }
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
@@ -16,36 +22,66 @@
              padding: 14px 16px; border-bottom: 1px solid var(--line); }
     header strong { font-family: Georgia, serif; font-weight: normal; font-size: 20px; }
     header span { color: var(--muted); font-size: 14px; }
-    a { color: inherit; }
-    main { max-width: 48rem; margin: 0 auto; padding: 24px 16px; }
-    .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 12px; }
-    .tile { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+    header a { color: inherit; }
+    main { padding: 20px 16px 48px; display: grid; gap: 12px; }
+    .tile { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+            padding: 16px 18px; color: inherit; text-decoration: none; transition: border-color 0.15s; }
+    .tile:hover, .tile:focus-visible { border-color: var(--muted); }
+    .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+    .title { font-size: 18px; font-weight: 600; }
+    .desc { color: var(--muted); font-size: 14px; }
+    .status { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+              font-size: 14px; font-weight: 500; white-space: nowrap; }
+    .status.ok { background: var(--good-bg); color: var(--good-text); }
+    .status.bad { background: var(--bad-bg); color: var(--bad-text); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 12px 24px; margin-top: 14px; }
+    .stat .label { font-size: 13px; color: var(--muted); }
+    .stat .value { font-size: 22px; line-height: 1.25; font-variant-numeric: tabular-nums; }
     .muted { color: var(--muted); }
   </style>
 </head>
 <body>
   <header>
-    <strong>Bjoerkelund</strong>
+    <strong>Björkelund</strong>
     <span><span id="who">…</span> · <a href="/cdn-cgi/access/logout">Log out</a></span>
   </header>
-  <main>
-    <div class="tiles" id="tiles"></div>
-    <p class="muted" id="empty" hidden>No panels yet. Heating is coming next.</p>
+  <main id="tiles">
+    <p class="muted" id="empty" hidden>No panels yet.</p>
   </main>
   <script>
+    const el = (tag, cls, text) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = text;
+      return e;
+    };
     fetch("/api/admin/me")
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then(({ email, panels }) => {
         document.getElementById("who").textContent = email;
-        const tiles = document.getElementById("tiles");
+        const main = document.getElementById("tiles");
         for (const p of panels) {
-          const a = document.createElement("a");
-          a.className = "tile";
+          const a = el("a", "tile");
           a.href = `/admin/${p.id}`;
-          a.innerHTML = `<strong></strong><div class="muted"></div>`;
-          a.querySelector("strong").textContent = p.title;
-          a.querySelector("div").textContent = p.description;
-          tiles.append(a);
+          const top = el("div", "top");
+          const names = el("div");
+          names.append(el("div", "title", p.title), el("div", "desc", p.description));
+          top.append(names);
+          if (p.summary) {
+            // Status carries an icon and a label, never colour alone.
+            top.append(el("span", `status ${p.summary.ok ? "ok" : "bad"}`, `${p.summary.ok ? "✓" : "!"} ${p.summary.label}`));
+          }
+          a.append(top);
+          if (p.summary?.stats.length) {
+            const stats = el("div", "stats");
+            for (const s of p.summary.stats) {
+              const d = el("div", "stat");
+              d.append(el("div", "label", s.label), el("div", "value", s.value));
+              stats.append(d);
+            }
+            a.append(stats);
+          }
+          main.append(a);
         }
         document.getElementById("empty").hidden = panels.length > 0;
       })
