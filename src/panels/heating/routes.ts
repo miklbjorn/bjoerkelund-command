@@ -10,7 +10,8 @@ import page from "./page.html";
 const STALE_MS = 2 * 60 * 60 * 1000; // no successful check for 2 h → warn
 const MANUAL_CHECK_MIN_GAP_MS = 60_000; // protects the tado° daily quota
 
-const READING_COLUMNS = "ts, source, temp_c, humidity_pct, pump_power, action, error, ratelimit_remaining";
+const READING_COLUMNS =
+  "ts, source, temp_c, humidity_pct, pump_power, action, error, ratelimit_remaining, target_c, band_c, outside_c";
 
 export async function heatingRoutes(request: Request, env: Env, url: URL, admin: AdminIdentity): Promise<Response | null> {
   const { pathname } = url;

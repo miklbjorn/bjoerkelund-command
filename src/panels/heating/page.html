@@ -9,14 +9,14 @@
     :root {
       --bg: #f6f3ec; --card: #fffdf8; --text: #22261f; --muted: #6b6f63; --line: #e2ddd0;
       --accent: #801818; --accent-text: #fff;
-      --temp: #a32a24; --hum: #2f6f9f; --pump: rgba(163, 42, 36, 0.10); --grid: #ece7da;
+      --temp: #a32a24; --outside: #2f6f9f; --hum: #7a4fb0; --pump: rgba(163, 42, 36, 0.10); --grid: #ece7da;
       --warn-bg: #fbeee0; --warn-text: #7a3b06; --bad-bg: #f9e3e1; --bad-text: #8a1c14;
     }
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #161813; --card: #1f221b; --text: #e9e6dc; --muted: #9a9d90; --line: #34382d;
         --accent: #b8332b; --accent-text: #fff;
-        --temp: #d4544b; --hum: #3f8fd0; --pump: rgba(212, 84, 75, 0.16); --grid: #2b2f26;
+        --temp: #d4544b; --outside: #3f8fd0; --hum: #9a74d4; --pump: rgba(212, 84, 75, 0.16); --grid: #2b2f26;
         --warn-bg: #3a2a14; --warn-text: #f3c48a; --bad-bg: #3d1a17; --bad-text: #f2a39c;
       }
     }
@@ -56,8 +56,14 @@
     .chart { position: relative; height: 220px; margin-top: 8px; }
     .chart.small { height: 150px; }
     .chart-title { font-size: 13px; color: var(--muted); margin-top: 12px; }
-    .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--pump);
-              border: 1px solid var(--temp); vertical-align: -2px; margin: 0 4px 0 8px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .key-line { width: 16px; height: 0; border-top: 2px solid; }
+    .key-line.dashed { border-top-style: dashed; border-top-width: 1.5px; }
+    .key-box { width: 12px; height: 12px; border-radius: 3px; background: var(--pump); border: 1px solid var(--temp); }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin-bottom: 10px; }
+    .filters label { display: grid; gap: 2px; }
+    select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
     .error { color: var(--bad-text); font-size: 14px; min-height: 1.2em; }
     .table-wrap { overflow-x: auto; }
     table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
@@ -115,8 +121,14 @@
           <button data-days="30" aria-pressed="false">30 days</button>
         </div>
       </div>
-      <div class="chart-title">Inside temperature (°C)<span class="swatch"></span>pump on</div>
-      <div class="chart"><canvas id="tempChart" aria-label="Inside temperature chart"></canvas></div>
+      <div class="chart-title">Temperature (°C)</div>
+      <div class="legend">
+        <span><i class="key-line" style="border-color:var(--temp)"></i>Inside</span>
+        <span><i class="key-line" style="border-color:var(--outside)"></i>Outside (tado° weather)</span>
+        <span><i class="key-line dashed" style="border-color:var(--muted)"></i>On / off thresholds at the time</span>
+        <span><i class="key-box"></i>Pump on</span>
+      </div>
+      <div class="chart"><canvas id="tempChart" aria-label="Inside and outside temperature chart"></canvas></div>
       <div class="chart-title">Humidity (%)</div>
       <div class="chart small"><canvas id="humChart" aria-label="Humidity chart"></canvas></div>
       <p class="muted" id="empty" hidden>No readings yet. The first one arrives at the top of the next hour, or press “Check now”.</p>
@@ -124,9 +136,27 @@
 
     <section class="card">
       <h2>Log</h2>
+      <div class="filters" id="filters">
+        <label>Show
+          <select id="f-count"><option value="10" selected>Latest 10</option><option value="50">Latest 50</option><option value="all">All</option></select>
+        </label>
+        <label>Action
+          <select id="f-action">
+            <option value="all" selected>All</option>
+            <option value="changes">Pump switched</option>
+            <option value="none">No change</option>
+            <option value="paused">Paused</option>
+            <option value="error">Errors</option>
+          </select>
+        </label>
+        <label>Source
+          <select id="f-source"><option value="all" selected>All</option><option value="cron">Hourly</option><option value="manual">Check now</option></select>
+        </label>
+        <span class="muted" id="f-count-text" style="font-size:13px"></span>
+      </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Time</th><th>Temp</th><th>Humidity</th><th>Pump</th><th>Action</th><th>Source</th><th>Error</th></tr></thead>
+          <thead><tr><th>Time</th><th>Inside</th><th>Outside</th><th>Humidity</th><th>Band</th><th>Pump</th><th>Action</th><th>Source</th><th>Error</th></tr></thead>
           <tbody id="log"></tbody>
         </table>
       </div>
@@ -317,20 +347,42 @@
       renderLog();
     }
 
+    // ---- Log (filters apply to the readings in the selected history range) ----
+    const ACTION_FILTERS = {
+      all: () => true,
+      changes: (r) => r.action === "turned_on" || r.action === "turned_off",
+      none: (r) => r.action === "none",
+      paused: (r) => r.action === "paused",
+      error: (r) => r.action === "error",
+    };
+    const bandText = (r) => (r.target_c == null ? "–" : `${(r.target_c - r.band_c).toFixed(1)}–${(r.target_c + r.band_c).toFixed(1)}`);
+
     function renderLog() {
-      const rows = readings.slice(-48).reverse().map((r) => {
+      const count = $("f-count").value, action = $("f-action").value, source = $("f-source").value;
+      const matching = readings
+        .filter(ACTION_FILTERS[action])
+        .filter((r) => source === "all" || r.source === source)
+        .reverse();
+      const shown = count === "all" ? matching : matching.slice(0, Number(count));
+      const range = { 1: "24 hours", 7: "7 days", 30: "30 days" }[days];
+      $("f-count-text").textContent = `Showing ${shown.length} of ${matching.length} matching in the last ${range}`;
+      const rows = shown.map((r) => {
         const tr = document.createElement("tr");
-        const cells = [fmtTime.format(new Date(r.ts)), deg(r.temp_c), pct(r.humidity_pct), r.pump_power ?? "–", ACTIONS[r.action] ?? r.action, r.source, r.error ?? ""];
+        const cells = [
+          fmtTime.format(new Date(r.ts)), deg(r.temp_c), deg(r.outside_c), pct(r.humidity_pct), bandText(r),
+          r.pump_power ?? "–", ACTIONS[r.action] ?? r.action, r.source === "cron" ? "hourly" : "check now", r.error ?? "",
+        ];
         cells.forEach((text, i) => {
           const td = document.createElement("td");
           td.textContent = text;
-          if (i === 6 && text) td.className = "err";
+          if (i === cells.length - 1 && text) td.className = "err";
           tr.append(td);
         });
         return tr;
       });
       $("log").replaceChildren(...rows);
     }
+    $("filters").addEventListener("change", renderLog);
 
     // Shaded spans while the pump was on, dashed threshold lines, and a hover crosshair.
     const overlays = {
@@ -360,10 +412,22 @@
         }
         ctx.restore();
       },
-      afterDatasetsDraw(chart) {
+      afterDatasetsDraw(chart, _args, opts) {
+        const { ctx, chartArea: a } = chart;
+        // Direct labels at the end of the named series, in text ink (the line carries the colour).
+        ctx.save();
+        ctx.font = "12px system-ui, sans-serif";
+        ctx.fillStyle = css("--muted");
+        ctx.textAlign = "right";
+        for (const { index, label } of opts.endLabels ?? []) {
+          const pts = chart.getDatasetMeta(index).data.filter((p) => !p.skip && Number.isFinite(p.y));
+          const last = pts[pts.length - 1];
+          if (last) ctx.fillText(label, Math.min(last.x, a.right) - 4, last.y - 6);
+        }
+        ctx.restore();
+
         const active = chart.tooltip?.getActiveElements?.() ?? [];
         if (!active.length) return;
-        const { ctx, chartArea: a } = chart;
         ctx.save();
         ctx.strokeStyle = css("--muted");
         ctx.lineWidth = 1;
@@ -373,12 +437,16 @@
     };
 
     const charts = {};
-    function lineChart(canvas, color, unit, plugins) {
+    const series = (color) => ({ data: [], borderColor: color, backgroundColor: color, borderWidth: 2, pointRadius: 0,
+                                 pointHoverRadius: 5, pointHoverBorderColor: css("--card"), pointHoverBorderWidth: 2, tension: 0.25, spanGaps: false });
+    // Thresholds are steps: each reading's settings hold until the next reading.
+    const threshold = () => ({ data: [], borderColor: css("--muted"), borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0,
+                               pointHoverRadius: 0, stepped: "after", spanGaps: false });
+    function lineChart(canvas, datasets, unit, plugins) {
       const muted = css("--muted"), grid = css("--grid");
       return new Chart(canvas, {
         type: "line",
-        data: { datasets: [{ data: [], borderColor: color, backgroundColor: color, borderWidth: 2, pointRadius: 0,
-                             pointHoverRadius: 5, pointHoverBorderColor: css("--card"), pointHoverBorderWidth: 2, tension: 0.25, spanGaps: false }] },
+        data: { datasets },
         options: {
           responsive: true, maintainAspectRatio: false, animation: false, parsing: false,
           interaction: { mode: "index", intersect: false, axis: "x" },
@@ -391,13 +459,15 @@
           plugins: {
             legend: { display: false },
             tooltip: {
-              displayColors: false,
+              // Only the named series get a row; band and pump state go in the footer.
+              filter: (item) => item.dataset.label != null && item.parsed.y != null,
               callbacks: {
                 title: (items) => fmtTime.format(new Date(items[0].parsed.x)),
-                label: (item) => `${item.parsed.y.toFixed(1)} ${unit}`,
-                afterLabel: (item) => {
-                  const r = readings[item.dataIndex];
-                  return r && unit === "°C" ? `pump ${r.pump_power ?? "–"}` : "";
+                label: (item) => `${item.dataset.label}: ${item.parsed.y.toFixed(1)} ${unit}`,
+                footer: (items) => {
+                  const r = readings[items[0]?.dataIndex];
+                  if (!r || unit !== "°C") return "";
+                  return `band ${bandText(r)} · pump ${r.pump_power ?? "–"}`;
                 },
               },
             },
@@ -411,8 +481,16 @@
     function renderCharts() {
       if (!window.Chart || !status) return;
       $("empty").hidden = readings.length > 0;
-      const temps = readings.map((r) => ({ x: Date.parse(r.ts), y: r.temp_c }));
-      const hums = readings.map((r) => ({ x: Date.parse(r.ts), y: r.humidity_pct }));
+      const at = (r) => Date.parse(r.ts);
+      const temps = readings.map((r) => ({ x: at(r), y: r.temp_c }));
+      const outside = readings.map((r) => ({ x: at(r), y: r.outside_c }));
+      const hums = readings.map((r) => ({ x: at(r), y: r.humidity_pct }));
+      // Historical band from each reading; extended to now with the current settings, so a change shows at once.
+      const t = status.thresholds;
+      const onLine = readings.map((r) => ({ x: at(r), y: r.target_c == null ? null : r.target_c - r.band_c }));
+      const offLine = readings.map((r) => ({ x: at(r), y: r.target_c == null ? null : r.target_c + r.band_c }));
+      onLine.push({ x: Date.now(), y: t.on });
+      offLine.push({ x: Date.now(), y: t.off });
       const spans = [];
       readings.forEach((r, i) => {
         if (r.pump_power !== "ON") return;
@@ -420,22 +498,22 @@
         spans.push([Date.parse(r.ts), to]);
       });
       const min = Date.now() - days * 86_400_000, max = Date.now();
-      const t = status.thresholds;
 
-      charts.temp ??= lineChart($("tempChart"), css("--temp"), "°C", {});
-      charts.hum ??= lineChart($("humChart"), css("--hum"), "%", {});
-      for (const [chart, data] of [[charts.temp, temps], [charts.hum, hums]]) {
-        chart.data.datasets[0].data = data;
+      charts.temp ??= lineChart($("tempChart"),
+        [{ ...series(css("--temp")), label: "Inside" }, { ...series(css("--outside")), label: "Outside" }, threshold(), threshold()], "°C", {});
+      charts.hum ??= lineChart($("humChart"), [{ ...series(css("--hum")), label: "Humidity" }], "%", {});
+      [temps, outside, onLine, offLine].forEach((data, i) => (charts.temp.data.datasets[i].data = data));
+      charts.hum.data.datasets[0].data = hums;
+      for (const chart of [charts.temp, charts.hum]) {
         chart.options.scales.x.min = min;
         chart.options.scales.x.max = max;
       }
       charts.temp.options.plugins.overlays = {
         pumpSpans: spans,
-        lines: [{ value: t.on, label: `on ${t.on.toFixed(1)}°` }, { value: t.off, label: `off ${t.off.toFixed(1)}°` }],
+        endLabels: [{ index: 0, label: "inside" }, { index: 1, label: "outside" }],
       };
-      const tv = temps.map((p) => p.y).filter((v) => v != null);
-      charts.temp.options.scales.y.suggestedMin = Math.min(t.on - 1, ...tv);
-      charts.temp.options.scales.y.suggestedMax = Math.max(t.off + 1, ...tv);
+      charts.temp.options.scales.y.suggestedMin = t.on - 1;
+      charts.temp.options.scales.y.suggestedMax = t.off + 1;
       charts.hum.options.plugins.overlays = { lines: [{ value: 70, label: "70 %" }] };
       charts.hum.options.scales.y.suggestedMin = 40;
       charts.hum.options.scales.y.suggestedMax = 80;

@@ -1,6 +1,6 @@
 import type { Env } from "../../index";
 import { decide, type Settings } from "./control";
-import { getZoneState, setPower, TadoError, type CallInfo } from "./tado";
+import { getOutsideTemp, getZoneState, setPower, TadoError, type CallInfo } from "./tado";
 
 const RETENTION_DAYS = 400;
 
@@ -13,6 +13,9 @@ export type Reading = {
   action: "none" | "turned_on" | "turned_off" | "paused" | "error";
   error: string | null;
   ratelimit_remaining: number | null;
+  target_c: number | null; // settings in force for this check
+  band_c: number | null;
+  outside_c: number | null;
 };
 
 export async function loadSettings(db: D1Database): Promise<Settings> {
@@ -37,14 +40,24 @@ export async function runCheck(env: Env, source: Reading["source"]): Promise<Rea
     action: "error",
     error: null,
     ratelimit_remaining: null,
+    target_c: null,
+    band_c: null,
+    outside_c: null,
   };
 
   try {
     const settings = await loadSettings(env.DB);
+    reading.target_c = settings.target_c;
+    reading.band_c = settings.band_c;
     const state = await getZoneState(env.DB, info);
     reading.temp_c = state.temp_c;
     reading.humidity_pct = state.humidity_pct;
     reading.pump_power = state.power;
+    // Outside temperature is for the chart only: its failure must not affect control.
+    reading.outside_c = await getOutsideTemp(env.DB, info).catch((err) => {
+      console.error("outside temperature failed", err instanceof Error ? err.message : err);
+      return null;
+    });
 
     if (!state.online) throw new TadoError("tado° device is offline");
     if (state.temp_c === null) throw new TadoError("no temperature reading");
@@ -70,9 +83,22 @@ export async function runCheck(env: Env, source: Reading["source"]): Promise<Rea
 
   reading.ratelimit_remaining = info.ratelimitRemaining;
   await env.DB.prepare(
-    "INSERT INTO heating_readings (ts, source, temp_c, humidity_pct, pump_power, action, error, ratelimit_remaining) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+    "INSERT INTO heating_readings (ts, source, temp_c, humidity_pct, pump_power, action, error, ratelimit_remaining, target_c, band_c, outside_c) " +
+      "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
   )
-    .bind(reading.ts, reading.source, reading.temp_c, reading.humidity_pct, reading.pump_power, reading.action, reading.error, reading.ratelimit_remaining)
+    .bind(
+      reading.ts,
+      reading.source,
+      reading.temp_c,
+      reading.humidity_pct,
+      reading.pump_power,
+      reading.action,
+      reading.error,
+      reading.ratelimit_remaining,
+      reading.target_c,
+      reading.band_c,
+      reading.outside_c,
+    )
     .run();
   return reading;
 }

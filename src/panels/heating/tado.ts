@@ -188,6 +188,13 @@ export async function getZoneState(db: D1Database, info: CallInfo): Promise<Zone
   };
 }
 
+// tado°'s weather for the home's location (not a sensor at the house).
+export async function getOutsideTemp(db: D1Database, info: CallInfo): Promise<number | null> {
+  const { homeId } = await zone(db);
+  const w = await api<{ outsideTemperature?: { celsius?: number } }>(db, info, "GET", `/homes/${homeId}/weather`);
+  return w.outsideTemperature?.celsius ?? null;
+}
+
 // Always a MANUAL overlay with no expiry, so the tado° schedule never takes over between checks.
 export async function setPower(db: D1Database, info: CallInfo, power: "ON" | "OFF") {
   const { homeId, zoneId, heat } = await zone(db);
